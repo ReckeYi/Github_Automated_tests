@@ -19,8 +19,51 @@ permissions:
 
 
 jobs:
+  download-history:
+    # if: false
+    runs-on: ubuntu-latest
+    name: Download history
+    steps:
+      - name: setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: >
+         "https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts?name=test-results" 
+          | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
+          &&
+          curl -L 
+          -H "Accept: application/vnd.github+json" 
+          -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts/$ARTIFACT_ID/zip 
+          -o artifacts.zip &&
+          REPORT_ID=$(curl -L 
+          -H "Accept: application/vnd.github+json" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          "https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts?name=github-pages" 
+          | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
+          &&
+          curl -L 
+          -H "Accept: application/vnd.github+json" 
+          -H "Authorization: Bearer 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" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts/$REPORT_ID/zip 
+          -o pages.zip
+      - run: mkdir test-results && unzip artifacts.zip -d test-results
+      - run: mkdir old_pages pages_history && unzip pages.zip -d old_pages && tar -xvf old_pages/artifact.tar -C pages_history
+      - run: cp pages_history/history/* test-results && cp -r pages_history/history test-results
+      - name: Store allure history
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path:
+            test-results
+          retention-days: 1
+
   test:
     runs-on: ubuntu-latest
+    needs: download-history
 
     steps:
       - name: Checkout repository
@@ -33,6 +76,8 @@ jobs:
         run: sudo apt-get install google-chrome-stable
       - name: install dependencies
         run: pip install -r requirements.txt
+      - name: Dowmload all workflow run artifacts
+        uses: actions/download-artifact@v3
       - name: first_test
         if: "github.event.inputs.deployment_target == 'first_test'"
         run: pytest tests/test_button.py::test_button_exist --alluredir=test-results
