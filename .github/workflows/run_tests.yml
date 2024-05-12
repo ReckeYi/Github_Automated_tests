@@ -18,7 +18,6 @@ permissions:
   pages: write
   id-token: write
 
-
 jobs:
   download-history:
     runs-on: ubuntu-latest
@@ -29,19 +28,18 @@ jobs:
         with:
           python-version: "3.10"
       - run: >
-           ARTIFACT_ID=$(curl -L 
+           ARTIFACT_ID=$(curl -L
           -H "Accept: application/vnd.github+json" 
           -H "X-GitHub-Api-Version: 2022-11-28" 
           "https://api.github.com/repos//ReckeYi/Github_Automated_test/actions/artifacts?name=test-results" 
           | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
-          &&          
-          curl -L 
+          &&
+          curl -L
           -H "Accept: application/vnd.github+json" 
           -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
           -H "X-GitHub-Api-Version: 2022-11-28" 
           https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts/$ARTIFACT_ID/zip 
-          -o artifacts.zip
-          &&
+          -o artifacts.zip &&
           REPORT_ID=$(curl -L 
           -H "Accept: application/vnd.github+json" 
           -H "X-GitHub-Api-Version: 2022-11-28" 
