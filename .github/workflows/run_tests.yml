@@ -11,6 +11,7 @@ on:
         options:
           - first_test
           - second_test
+          - all
 
 permissions:
   contents: read
@@ -20,7 +21,6 @@ permissions:
 
 jobs:
   download-history:
-    # if: false
     runs-on: ubuntu-latest
     name: Download history
     steps:
@@ -29,9 +29,6 @@ jobs:
         with:
           python-version: "3.10"
       - run: >
-         "https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts?name=test-results" 
-          | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
-          &&
           curl -L 
           -H "Accept: application/vnd.github+json" 
           -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
