@@ -18,8 +18,53 @@ permissions:
   id-token: write
 
 jobs:
+  download-history:
+    runs-on: ubuntu-latest
+    name: Download history
+    steps:
+      - name: setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: >
+          ARTIFACT_ID=$(curl -L
+          -H "Accept: application/vnd.github+json" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          "https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts?name=allure-results" 
+          | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
+          &&
+          curl -L
+          -H "Accept: application/vnd.github+json" 
+          -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts/$ARTIFACT_ID/zip 
+          -o artifacts.zip &&
+          REPORT_ID=$(curl -L 
+          -H "Accept: application/vnd.github+json" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          "https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts?name=github-pages" 
+          | python -c "import sys, json; print(json.load(sys.stdin)['artifacts'][0]['id']);") 
+          &&
+          curl -L 
+          -H "Accept: application/vnd.github+json" 
+          -H "Authorization: Bearer ${{ secrets.TOKEN }}" 
+          -H "X-GitHub-Api-Version: 2022-11-28" 
+          https://api.github.com/repos/ReckeYi/Github_Automated_tests/actions/artifacts/$REPORT_ID/zip 
+          -o artifacts.zip
+      - run: mkdir allure-results && unzip artifacts.zip -d allure-results
+      - run: mkdir old_pages pages_history && unzip artifacts.zip -d old_pages && tar -xvf old_pages/artifact.tar -C pages_history
+      - run: cp pages_history/history/* allure-results && cp -r pages_history/history allure-results
+      - name: Store allure history
+        uses: actions/upload-artifact@v3
+        with:
+          name: allure-results
+          path:
+            allure-results
+          retention-days: 1
+
   test:
     runs-on: ubuntu-latest
+    needs: download-history
 
     steps:
       - name: Checkout repository
@@ -46,7 +91,7 @@ jobs:
           name: allure-results
           path:
             allure-results
-          retention-days: 2
+          retention-days: 1
 
   generate-report:
     runs-on: ubuntu-latest
@@ -67,12 +112,12 @@ jobs:
           name: _site
           path:
             _site
-          retention-days: 2
+          retention-days: 1
 
   publish-report:
     runs-on: ubuntu-latest
     needs: generate-report
-    name: Report publication
+    name: Publish report
     steps:
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v3
